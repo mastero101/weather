@@ -1,0 +1,119 @@
+
+[code]
+#include <LiquidCrystal_I2C.h>
+#include <SFE_BMP180.h>
+#include <Wire.h>
+#include "RTClib.h"
+#include "DHT.h"
+#define DHTPIN 2
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+RTC_DS1307 RTC;
+LiquidCrystal_I2C lcd(0x27,16,2);
+
+SFE_BMP180 pressure;
+float temperature;
+
+#define ALTITUDE 1.0 // Altitude in Campeche, Mexico
+
+ 
+void setup(void) {
+
+  dht.begin(); 
+  Wire.begin(); // Inicia el puerto I2C
+  RTC.begin(); // Inicia la comunicación con el RTC
+  //RTC.adjust(DateTime(__DATE__, __TIME__)); // Establece la fecha y hora (Comentar una vez establecida la hora)
+  lcd.backlight();
+  lcd.init();  
+  Serial.begin(9600);   
+  pressure.begin();
+}
+
+void loop() {
+  
+ float temperature;
+ float pressure;
+ float h = dht.readHumidity(); //Se lee la humedad
+ 
+ pressure = readPressureAndTemperature();
+ 
+ delay(2000);
+ 
+ DateTime now = RTC.now();
+ 
+Serial.print(now.year(), DEC); // Año
+Serial.print('/');
+Serial.print(now.month(), DEC); // Mes
+Serial.print('/');
+Serial.print(now.day(), DEC); // Dia
+Serial.print(' ');
+Serial.print(now.hour(), DEC); // Horas
+Serial.print(':');
+Serial.print(now.minute(), DEC); // Minutos
+Serial.print(':');
+Serial.print(now.second(), DEC); // Segundos
+Serial.println();
+delay(1000); // La información se actualiza cada 1 seg.
+
+Serial.println("Humedad: "); 
+Serial.println(h);
+delay(2000);
+ 
+ lcd.clear(); 
+ 
+ char tempF[6]; 
+ char pressF[7];
+ 
+ dtostrf(temperature, 5, 1, tempF);
+ dtostrf(pressure, 7, 2, pressF);
+ 
+ //Printing Pressure
+ lcd.setCursor(0,1);
+ lcd.print("P: ");
+ lcd.print(pressF);
+ lcd.print(" hPa");
+ Serial.print("P: ");
+ Serial.print(pressF);
+ Serial.print(" hPa");
+ Serial.print(", ");
+}
+
+float readPressureAndTemperature()
+
+{
+  char status;
+  double T,P,p0,a;
+
+  status = pressure.startTemperature();
+  if (status != 0)
+  {
+    delay(status);
+    status = pressure.getTemperature(T);
+    if (status != 0)
+    { 
+      lcd.setCursor(0,0);
+      lcd.print("T: ");
+      lcd.print(T,2);
+      lcd.print(" C ");
+      Serial.print("T: ");
+      Serial.print(T,2);
+      Serial.print(" C ");
+      Serial.print(", ");
+    
+      temperature = T;
+      status = pressure.startPressure(3);
+      if (status != 0)
+      {
+        delay(status);
+        status = pressure.getPressure(P,T);
+        if (status != 0)
+        {
+          p0 = pressure.sealevel(P,ALTITUDE);       
+          return p0;
+        }
+      }
+    }
+  }
+}
+
+[/code]
